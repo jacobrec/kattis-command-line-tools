@@ -1,0 +1,54 @@
+#!/usr/bin/env python
+
+import argparse
+import sys
+
+class Kattis(object):
+
+    def __init__(self):
+        parser = argparse.ArgumentParser(
+            usage='''kattis <command> [<args>]
+
+Commands:
+    get       Create a directory containing a problem's sample data files
+''')
+
+        parser.add_argument('command')
+
+        # display help if a command hasn't been provided
+        if len(sys.argv) == 1:
+            parser.print_usage()
+            exit(1)
+
+        # ensure the provided command exists
+        args = parser.parse_args(sys.argv[1:2])
+        if not hasattr(self, args.command):
+            parser.print_usage()
+            print("\nInvalid command. Please choose a command from the list above.")
+            exit(1)
+
+        # invoke the valid command's corresponding method
+        getattr(self, args.command)()
+
+    def get(self):
+        parser = argparse.ArgumentParser(usage='''kattis get <problemid>
+
+Arguments:
+    problemid - A valid Kattis Problem ID. Problem IDs can be found in the
+                top-right corner of a problem's description page.
+
+''')
+
+        parser.add_argument('problemid', type=str)
+
+        # ensure that only a single problemid has been provided
+        if len(sys.argv) != 3:
+            parser.print_usage()
+            print('\nPlease provide a single Problem ID.')
+            exit(1)
+
+        args = parser.parse_args(sys.argv[2:])
+        problemid = args.problemid
+
+if __name__ == '__main__':
+    Kattis()

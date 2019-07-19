@@ -62,6 +62,21 @@ Arguments:
             exit(1)
         r.raise_for_status() # catch other errors
 
+        # create problem directory
+        pwd = os.getcwd()
+        target_directory = "{}/{}".format(pwd, problem_id)
+        print("Creating directory: {}\n".format(target_directory))
+        try:
+            os.mkdir(target_directory)
+        except FileExistsError:
+            user_confirmation = input("{} already exists.\nWould you still like to download the sample data files to it? yN ".format(target_directory))
+            if user_confirmation.lower() != 'y':
+                print("\nDownload aborted. Exiting...")
+                exit(1)
+            print()
+
+        print("Downloading sample data files...")
+
 
 if __name__ == '__main__':
     Kattis()

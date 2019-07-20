@@ -3,18 +3,22 @@
 import argparse
 import io
 import os
-import requests
 import sys
 import zipfile
+import requests
+
 
 class Kattis():
+    '''
+    Use argparse to allow the user to easily interact with Kattis.com
+    '''
 
     def __init__(self):
         parser = argparse.ArgumentParser(
             usage='''kattis <command> [<args>]
 
 Commands:
-    get       Create a directory containing a problem's sample data files
+    get       Obtain sample data from Kattis.com for a given problem
 ''')
 
         parser.add_argument('command')
@@ -28,26 +32,26 @@ Commands:
         args = parser.parse_args(sys.argv[1:2])
         if not hasattr(self, args.command):
             parser.print_usage()
-            print("\nInvalid command. Please choose a command from the list above.")
+            print("\nInvalid command. "
+                  "Please choose a command from the list above.")
             exit(1)
 
         # invoke the valid command's corresponding method
         getattr(self, args.command)()
 
-
-
     def get(self):
-        parser = argparse.ArgumentParser(usage='''kattis get <problemid>
+        '''Obtains sample data from Kattis.com for a given problem'''
+        parser = argparse.ArgumentParser(usage='''kattis get <problem_id>
 
 Arguments:
-    problemid - A valid Kattis Problem ID. Problem IDs can be found in the
+    problem_id - A valid Kattis Problem ID. Problem IDs can be found in the
                 top-right corner of a problem's description page.
 
 ''')
 
-        parser.add_argument('problemid', type=str)
+        parser.add_argument('problem_id', type=str)
 
-        # ensure that only a single problemid has been provided
+        # ensure that only a single problem_id has been provided
         if len(sys.argv) != 3:
             parser.print_usage()
             print("\nPlease provide a single Problem ID.")
@@ -55,8 +59,9 @@ Arguments:
 
         # parse args to get Problem ID
         args = parser.parse_args(sys.argv[2:])
-        problem = Problem(args.problemid)
-        print('''Problem ID: {}\nProblem URL: {}\n'''.format(problem.id, problem.url))
+        problem = Problem(args.problem_id)
+        print('''Problem ID: {}\nProblem URL: {}\n'''.format(problem.id,
+                                                             problem.url))
 
         # verify that the given problem exists on Kattis
         problem.confirm_problem_exists()
@@ -68,67 +73,91 @@ Arguments:
         problem.standardize_sample_data()
 
 
-
-
-
 class Problem():
+    '''
+    Represents a problem on Kattis.com
+
+    Args:
+        problem_id (str): The Problem's ID on Kattis.com
+
+    Attributes:
+        url (str): The URL for the problem's description page
+        directory (str): The local directory where problem data is stored
+    '''
 
     def __init__(self, problem_id):
         self.id = problem_id
         self.url = 'https://open.kattis.com/problems/' + self.id
         self.directory = "{}/{}".format(os.getcwd(), self.id)
 
-
     def confirm_problem_exists(self):
+        '''Confirms that the problem actually exists on Kattis.com'''
         r = requests.get(self.url)
         if r.status_code == 404:
-            print('404 Error Received. Please confirm that you have entered a valid Kattis Problem ID.')
+            print("404 Error Received. "
+                  "Please confirm that you have entered a valid "
+                  "Kattis Problem ID.")
             exit(1)
-        r.raise_for_status() # catch other errors
-
+        r.raise_for_status()  # catch other errors
 
     def download_sample_data(self):
-        print("Downloading sample data files to: \n{}\n".format(self.directory))
+        '''Downloads problem's sample data and places them in the problem
+        directory
+        '''
+        print("Downloading sample data files to: "
+              "\n{}\n".format(self.directory))
 
         if os.path.isdir(self.directory):
-            print("WARNING: Problem directory already exists. Download aborted.")
+            print("WARNING: Problem directory already exists. "
+                  "Download aborted.")
             exit(1)
 
         sample_data_url = self.url + '/file/statement/samples.zip'
         r = requests.get(sample_data_url)
         if r.ok:
-            z = zipfile.ZipFile(io.BytesIO(r.content))
-            z.extractall(self.directory)
+            file = zipfile.ZipFile(io.BytesIO(r.content))
+            file.extractall(self.directory)
             print("Download complete.\n")
         else:
-            print('''There was an error downloading the sample data. Do the samples follow the
-standard Kattis format? Some problems, such as those related to machine
-learning, handle sample data differently. Please download these problems
-manually.''')
+            print('''There was an error downloading the sample data.
+Do the samples follow the standard Kattis format? Some problems, such as those
+related to machine learning, handle sample data differently.
+Please download these problems manually.''')
             exit(1)
 
-
     def standardize_sample_data(self):
+        '''Attempts to standardize the sample data's filenames
+
+        Kattis problems' sample data don't use standard filenames, which can
+        sometimes be annoying when trying to pass them into your solution.
+
+        This method attempts to enumerate the sample data in the order that
+        they are given, in order to make testing problem solutions more
+        convenient.
+        '''
         print("Standardizing filenames...\n")
 
-        # extract filenames from sample data and attempt to determine which are inputs and outputs
+        # attempt to determine which file extensions are used for input/output
         files = os.listdir(self.directory)
         input_files = sorted([file for file in files if file.endswith('.in')])
 
         if not input_files:
-            print("Unable to standardize sample data. Do the sample inputs end in '.in' ?")
+            print("Unable to standardize sample data. "
+                  "Do the sample inputs end in '.in' ?")
             return
 
-        output_files = sorted([file for file in files if not file.endswith('.in')])
+        output_files = sorted([file for file in files
+                               if not file.endswith('.in')])
 
-        for i in range(len(input_files)):
-            os.rename("{}/{}".format(self.directory, input_files[i]), '{}/{}.in'.format(self.directory, i+1))
-            os.rename("{}/{}".format(self.directory, output_files[i]), '{}/{}.ans'.format(self.directory, i+1))
+        for i, file in enumerate(input_files):
+            os.rename("{}/{}".format(self.directory, file),
+                      '{}/{}.in'.format(self.directory, i + 1))
+
+        for i, file in enumerate(output_files):
+            os.rename("{}/{}".format(self.directory, file),
+                      '{}/{}.ans'.format(self.directory, i + 1))
 
         print("Standardization complete.")
-
-
-
 
 
 if __name__ == '__main__':

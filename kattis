@@ -1,10 +1,24 @@
 #!/usr/bin/env python
 
+"""
+Kattis Command Line Tools
+
+This command line interface allows users to interact with Kattis.com in a more
+convenient manner.
+
+Current features include:
+
+- setup: Provisions a problem directory by downloading sample data,
+         standardizing their filenames, and creating a default solution file.
+"""
+
 import argparse
 import io
 import os
 import sys
+import yaml
 import zipfile
+
 import requests
 
 
@@ -18,9 +32,10 @@ class Kattis():
             usage='''kattis <command> [<args>]
 
 Commands:
-    get       Obtain sample data from Kattis.com for a given problem
+    setup    Provisions a problem directory by downloading sample data,
+             standardizing their filenames, and creating a default solution
+             file.
 ''')
-
         parser.add_argument('command')
 
         # display help if a command hasn't been provided
@@ -39,16 +54,15 @@ Commands:
         # invoke the valid command's corresponding method
         getattr(self, args.command)()
 
-    def get(self):
+    def setup(self):
         '''Obtains sample data from Kattis.com for a given problem'''
-        parser = argparse.ArgumentParser(usage='''kattis get <problem_id>
+        parser = argparse.ArgumentParser(usage='''kattis setup <problem_id>
 
 Arguments:
     problem_id - A valid Kattis Problem ID. Problem IDs can be found in the
                 top-right corner of a problem's description page.
 
 ''')
-
         parser.add_argument('problem_id', type=str)
 
         # ensure that only a single problem_id has been provided
@@ -90,6 +104,14 @@ class Problem():
         self.url = 'https://open.kattis.com/problems/' + self.id
         self.directory = "{}/{}".format(os.getcwd(), self.id)
 
+        # attempt to read config file for use in setup
+        # kattis_config = os.path.dirname(os.path.realpath(__file__)) + '/kattis.yaml'
+        # with open(kattis_config, 'r') as stream:
+        #     try:
+        #         print(yaml.safe_load(stream))
+        #     except yaml.YAMLError as exc:
+        #         print(exc)
+
     def confirm_problem_exists(self):
         '''Confirms that the problem actually exists on Kattis.com'''
         r = requests.get(self.url)
@@ -107,14 +129,17 @@ class Problem():
         print("Downloading sample data files to: "
               "\n{}\n".format(self.directory))
 
+        # abort download if the problem directory already exists
         if os.path.isdir(self.directory):
             print("WARNING: Problem directory already exists. "
                   "Download aborted.")
             exit(1)
 
+        # attempt to download the sample data .zip
         sample_data_url = self.url + '/file/statement/samples.zip'
         r = requests.get(sample_data_url)
         if r.ok:
+            # unzip the sample data and place them in the problem directory
             file = zipfile.ZipFile(io.BytesIO(r.content))
             file.extractall(self.directory)
             print("Download complete.\n")
@@ -149,10 +174,12 @@ Please download these problems manually.''')
         output_files = sorted([file for file in files
                                if not file.endswith('.in')])
 
+        # rename input files
         for i, file in enumerate(input_files):
             os.rename("{}/{}".format(self.directory, file),
                       '{}/{}.in'.format(self.directory, i + 1))
 
+        # rename output files
         for i, file in enumerate(output_files):
             os.rename("{}/{}".format(self.directory, file),
                       '{}/{}.ans'.format(self.directory, i + 1))

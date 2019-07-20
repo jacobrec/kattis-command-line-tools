@@ -7,7 +7,7 @@ import requests
 import sys
 import zipfile
 
-class Kattis(object):
+class Kattis():
 
     def __init__(self):
         parser = argparse.ArgumentParser(
@@ -34,6 +34,8 @@ Commands:
         # invoke the valid command's corresponding method
         getattr(self, args.command)()
 
+
+
     def get(self):
         parser = argparse.ArgumentParser(usage='''kattis get <problemid>
 
@@ -51,49 +53,76 @@ Arguments:
             print("\nPlease provide a single Problem ID.")
             exit(1)
 
-        # parse args to get problemid
+        # parse args to get Problem ID and the problem's URL
         args = parser.parse_args(sys.argv[2:])
         problem_id = args.problemid
         problem_url = 'https://open.kattis.com/problems/{}'.format(problem_id)
+        problem_directory = "{}/{}".format(os.getcwd(), problem_id)
         print('''Problem ID: {}\nProblem URL: {}\n'''.format(problem_id, problem_url))
 
         # verify that the given problem exists on Kattis
-        r = requests.get(problem_url)
-        if r.status_code == 404:
-            print('404 Error Received. Please confirm that you have entered a valid Kattis Problem ID.')
-            exit(1)
-        r.raise_for_status() # catch other errors
+        confirm_problem_exists(problem_url)
 
         # determine if given problem directory already exists
-        pwd = os.getcwd()
-        target_directory = "{}/{}".format(pwd, problem_id)
-        print("Downloading sample data files to: \n{}\n".format(target_directory))
-
-        if os.path.isdir(target_directory):
-            user_confirmation = input('''WARNING: Directory already exists. File contents may be overwritten.
-Would you still like to download the sample data files to it? yN ''')
-            if user_confirmation.lower() != 'y':
-                print("\nDownload aborted. Exiting...")
-                exit(0)
-            print()
-
-        # attempt to download sample data files and place them in problem directory
-        sample_data_url = problem_url + '/file/statement/samples.zip'
-        r = requests.get(sample_data_url)
-        if r.ok:
-            z = zipfile.ZipFile(io.BytesIO(r.content))
-            z.extractall("{}/{}".format(pwd, problem_id))
-        else:
-            print('''There was an error downloading the sample data. Do the samples follow the
-standard Kattis format? Some problems, such as those related to machine
-learning, handle sample data differently. Please download these problems
-manually.
-''')
+        print("Downloading sample data files to: \n{}\n".format(problem_directory))
+        if os.path.isdir(problem_directory):
+            print("WARNING: Problem directory already exists. Download aborted.")
             exit(1)
 
-        print("Sample files downloaded.")
+        # attempt to download sample data files and place them in problem directory
+        download_sample_data(problem_url, problem_directory)
+
+        # standardize sample filenames
+        print("Standardizing filenames...\n")
+        standardized = standardize_sample_data(problem_directory)
+        if standardized:
+            print("Standardization complete.")
+        else:
+            print("Unable to standardize sample data. Do the sample inputs end in '.in' ?")
 
 
+
+def confirm_problem_exists(problem_url):
+    r = requests.get(problem_url)
+    if r.status_code == 404:
+        print('404 Error Received. Please confirm that you have entered a valid Kattis Problem ID.')
+        exit(1)
+    r.raise_for_status() # catch other errors
+
+
+
+def download_sample_data(problem_url, problem_directory):
+    sample_data_url = problem_url + '/file/statement/samples.zip'
+    r = requests.get(sample_data_url)
+    if r.ok:
+        z = zipfile.ZipFile(io.BytesIO(r.content))
+        z.extractall(problem_directory)
+    else:
+        print('''There was an error downloading the sample data. Do the samples follow the
+standard Kattis format? Some problems, such as those related to machine
+learning, handle sample data differently. Please download these problems
+manually.''')
+
+        exit(1)
+    print("Download complete.\n")
+
+
+
+def standardize_sample_data(path):
+    # extract filenames from sample data and attempt to determine which are inputs and outputs
+    files = os.listdir(path)
+    input_files = sorted([file for file in files if file.endswith('.in')])
+
+    if not input_files:
+        return False
+
+    output_files = sorted([file for file in files if not file.endswith('.in')])
+
+    for i in range(len(input_files)):
+        os.rename("{}/{}".format(path, input_files[i]), '{}/{}.in'.format(path, i+1))
+        os.rename("{}/{}".format(path, output_files[i]), '{}/{}.ans'.format(path, i+1))
+
+    return True
 
 
 

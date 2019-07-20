@@ -1,9 +1,11 @@
 #!/usr/bin/env python
 
 import argparse
+import io
 import os
 import requests
 import sys
+import zipfile
 
 class Kattis(object):
 
@@ -55,27 +57,44 @@ Arguments:
         problem_url = 'https://open.kattis.com/problems/{}'.format(problem_id)
         print('''Problem ID: {}\nProblem URL: {}\n'''.format(problem_id, problem_url))
 
-        # verify that the given problem exists
+        # verify that the given problem exists on Kattis
         r = requests.get(problem_url)
         if r.status_code == 404:
             print('404 Error Received. Please confirm that you have entered a valid Kattis Problem ID.')
             exit(1)
         r.raise_for_status() # catch other errors
 
-        # create problem directory
+        # determine if given problem directory already exists
         pwd = os.getcwd()
         target_directory = "{}/{}".format(pwd, problem_id)
-        print("Creating directory: {}\n".format(target_directory))
-        try:
-            os.mkdir(target_directory)
-        except FileExistsError:
-            user_confirmation = input("{} already exists.\nWould you still like to download the sample data files to it? yN ".format(target_directory))
+        print("Downloading sample data files to: \n{}\n".format(target_directory))
+
+        if os.path.isdir(target_directory):
+            user_confirmation = input('''WARNING: Directory already exists. File contents may be overwritten.
+Would you still like to download the sample data files to it? yN ''')
             if user_confirmation.lower() != 'y':
                 print("\nDownload aborted. Exiting...")
-                exit(1)
+                exit(0)
             print()
 
-        print("Downloading sample data files...")
+        # attempt to download sample data files and place them in problem directory
+        sample_data_url = problem_url + '/file/statement/samples.zip'
+        r = requests.get(sample_data_url)
+        if r.ok:
+            z = zipfile.ZipFile(io.BytesIO(r.content))
+            z.extractall("{}/{}".format(pwd, problem_id))
+        else:
+            print('''There was an error downloading the sample data. Do the samples follow the
+standard Kattis format? Some problems, such as those related to machine
+learning, handle sample data differently. Please download these problems
+manually.
+''')
+            exit(1)
+
+        print("Sample files downloaded.")
+
+
+
 
 
 if __name__ == '__main__':

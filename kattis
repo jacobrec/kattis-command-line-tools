@@ -105,12 +105,17 @@ class Problem():
         self.directory = "{}/{}".format(os.getcwd(), self.id)
 
         # attempt to read config file for use in setup
-        # kattis_config = os.path.dirname(os.path.realpath(__file__)) + '/kattis.yaml'
-        # with open(kattis_config, 'r') as stream:
-        #     try:
-        #         print(yaml.safe_load(stream))
-        #     except yaml.YAMLError as exc:
-        #         print(exc)
+        kattis_config = os.path.dirname(os.path.realpath(__file__)) + '/kattis.yaml'
+        with open(kattis_config, 'r') as stream:
+            try:
+                for key, value in yaml.safe_load(stream):
+                    print(key, value)
+            except yaml.YAMLError as exc:
+                print(exc)
+
+        # print(type(config_values))
+        # print(config_values[kattis_directory])
+        # print(config_values[default_extension])
 
     def confirm_problem_exists(self):
         '''Confirms that the problem actually exists on Kattis.com'''

@@ -1,2 +1,2 @@
-lang: "c++"
+lang: "c++" # can be "python" | "c++"
 location: "/home/jacob/kattis"

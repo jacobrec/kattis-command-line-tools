@@ -161,40 +161,9 @@ Arguments:
 
         fold = args.problem_id
         if config["lang"] == "python":
-            fName = "{1}/{0}/{0}".format(fold, config["location"])
-
-            f = open(fName, "w+")
-            f.write("#!/usr/bin/env python\n")
-            f.close()
-
-            st = os.stat(fName)
-            os.chmod(fName, st.st_mode | stat.S_IEXEC)
+            setupPythonFile(fold)
         elif config["lang"] == "c++":
-            fName = "{1}/{0}/{0}".format(fold, config["location"])
-
-            f = open(fName, "w+")
-            f.write("""#!/bin/sh
-cd {}/{}
-if [[ solution.cpp -nt sol ]]; then
-    g++ solution.cpp -o sol
-fi
-./sol
-""".format(config["location"], fold))
-            f.close()
-
-            f = open("{}/{}/solution.cpp".format(config["location"], fold) , "w+")
-            f.write("""
-#include <iostream>
-
-int main() {
-    // std::cin >> a >> b >> c; // 3 ints seperated by any amount of whitespace
-    std::cout << "Hello, World!\\n";
-}
-            """)
-            f.close()
-
-            st = os.stat(fName)
-            os.chmod(fName, st.st_mode | stat.S_IEXEC | stat.S_IXOTH | stat.S_IXGRP)
+            setupCppFile(fold)
 
 
 
@@ -291,5 +260,46 @@ Please download these problems manually.''')
         print("Standardization complete.")
 
 
+def setupCppFile(problem):
+    fold = problem
+    fName = "{1}/{0}/{0}".format(fold, config["location"])
+
+    f = open(fName, "w+")
+    f.write("""#!/bin/sh
+cd {}/{}
+if [[ solution.cpp -nt sol ]]; then
+g++ solution.cpp -o sol
+fi
+./sol
+""".format(config["location"], fold))
+    f.close()
+
+    f = open("{}/{}/solution.cpp".format(config["location"], fold) , "w+")
+    f.write("""
+#include <iostream>
+
+int main() {
+// std::cin >> a >> b >> c; // 3 ints seperated by any amount of whitespace
+std::cout << "Hello, World!\\n";
+}
+    """)
+    f.close()
+
+    st = os.stat(fName)
+    os.chmod(fName, st.st_mode | stat.S_IEXEC | stat.S_IXOTH | stat.S_IXGRP)
+
+def setupPythonFile(problem):
+    fold = problem
+    fName = "{1}/{0}/{0}".format(fold, config["location"])
+
+    f = open(fName, "w+")
+    f.write("#!/usr/bin/env python\n")
+    f.close()
+
+    st = os.stat(fName)
+    os.chmod(fName, st.st_mode | stat.S_IEXEC | stat.S_IXOTH | stat.S_IXGRP)
+
+
 if __name__ == '__main__':
     Kattis()
+

@@ -279,10 +279,9 @@ fi
 #include <iostream>
 
 int main() {
-// std::cin >> a >> b >> c; // 3 ints seperated by any amount of whitespace
-std::cout << "Hello, World!\\n";
-}
-    """)
+    // std::cin >> a >> b >> c; // 3 ints seperated by any amount of whitespace
+    std::cout << "Hello, World!\\n";
+}""")
     f.close()
 
     st = os.stat(fName)
@@ -293,7 +292,7 @@ def setupPythonFile(problem):
     fName = "{1}/{0}/{0}".format(fold, config["location"])
 
     f = open(fName, "w+")
-    f.write("#!/usr/bin/env python\n")
+    f.write("#!/usr/bin/env python3\n")
     f.close()
 
     st = os.stat(fName)

@@ -10,6 +10,7 @@ Current features include:
 
 - setup: Provisions a problem directory by downloading sample data,
          standardizing their filenames, and creating a default solution file.
+- test:  Tests a problem
 """
 
 import argparse
@@ -20,6 +21,10 @@ import zipfile
 
 import requests
 import yaml
+
+from subprocess import Popen, PIPE, STDOUT
+from os import listdir
+from os.path import isfile, join
 
 
 class Kattis():
@@ -35,6 +40,9 @@ Commands:
     setup    Provisions a problem directory by downloading sample data,
              standardizing their filenames, and creating a default solution
              file.
+
+    test     Tests said problem, by comparing input and output. Assumes there is
+             an executable file or script by the same name as the problem id.
 ''')
         parser.add_argument('command')
 
@@ -53,6 +61,58 @@ Commands:
 
         # invoke the valid command's corresponding method
         getattr(self, args.command)()
+
+    def test(self):
+        '''runs a given problem'''
+        parser = argparse.ArgumentParser(usage='''kattis test <problem_id>
+
+Arguments:
+    problem_id - A valid Kattis Problem ID. Problem IDs can be found in the
+                top-right corner of a problem's description page.
+
+''')
+        parser.add_argument('problem_id', type=str)
+
+        # ensure that only a single problem_id has been provided
+        if len(sys.argv) != 3:
+            parser.print_usage()
+            print("\nPlease provide a single Problem ID.")
+            exit(1)
+
+        # get problem id
+        args = parser.parse_args(sys.argv[2:])
+        problem = Problem(args.problem_id)
+
+        # run problem
+        print("Running tests for {}:".format(problem.id))
+        isGood = True
+        def runProblem(testcase):
+            with open("{}/{}.in".format(problem.id, testcase), "rb") as f:
+                data = f.read()
+                p = Popen(["./{0}/{0}".format(problem.id)], stdout=PIPE, stdin=PIPE)
+                stdout = p.communicate(input=data)[0]
+                with open("{}/{}.ans".format(problem.id, testcase), "rb") as f2:
+                    ans = f2.read()
+                    if ans != stdout:
+                        print("Failed testcase {}".format(testcase))
+                        print(stdout, ">>", ans)
+                        nonlocal isGood
+                        isGood = False
+
+
+        onlyfiles = [str(f) for f in listdir(problem.id) if isfile(join(problem.id, f))]
+        inFiles = [f.rstrip('.in') for f in onlyfiles if f.endswith(".in")]
+        outFiles = [f.rstrip('.ans') for f in onlyfiles if f.endswith(".ans")]
+        inFiles.sort()
+        outFiles.sort()
+        for i, f in enumerate(inFiles):
+            if f == outFiles[i]:
+                runProblem(f)
+
+        if isGood:
+            print("All testcases passed")
+
+
 
     def setup(self):
         '''Obtains sample data from Kattis.com for a given problem'''
@@ -104,18 +164,6 @@ class Problem():
         self.url = 'https://open.kattis.com/problems/' + self.id
         self.directory = "{}/{}".format(os.getcwd(), self.id)
 
-        # attempt to read config file for use in setup
-        # kattis_config = os.path.dirname(os.path.realpath(__file__)) + '/kattis.yaml'
-        # with open(kattis_config, 'r') as stream:
-        #     try:
-        #         for key, value in yaml.safe_load(stream):
-        #             print(key, value)
-        #     except yaml.YAMLError as exc:
-        #         print(exc)
-
-        # print(type(config_values))
-        # print(config_values[kattis_directory])
-        # print(config_values[default_extension])
 
     def confirm_problem_exists(self):
         '''Confirms that the problem actually exists on Kattis.com'''

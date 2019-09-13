@@ -17,6 +17,7 @@ import argparse
 import io
 import os
 import sys
+import stat
 import zipfile
 
 import requests
@@ -27,12 +28,23 @@ from os import listdir
 from os.path import isfile, join
 
 
+config = {}
+
+
 class Kattis():
     '''
     Use argparse to allow the user to easily interact with Kattis.com
     '''
 
     def __init__(self):
+        global config
+        # attempt to read config file for use in setup
+        kattis_config = os.path.dirname(os.path.realpath(__file__)) + '/kattis.yaml'
+        with open(kattis_config, 'r') as stream:
+            try:
+                config = yaml.safe_load(stream)
+            except yaml.YAMLError as exc:
+                print(exc)
         parser = argparse.ArgumentParser(
             usage='''kattis <command> [<args>]
 
@@ -86,12 +98,13 @@ Arguments:
         # run problem
         print("Running tests for {}:".format(problem.id))
         isGood = True
+        fold = config["location"] + "/" + problem.id
         def runProblem(testcase):
-            with open("{}/{}.in".format(problem.id, testcase), "rb") as f:
+            with open("{}/{}.in".format(fold, testcase), "rb") as f:
                 data = f.read()
-                p = Popen(["./{0}/{0}".format(problem.id)], stdout=PIPE, stdin=PIPE)
+                p = Popen(["{}/{}".format(fold, problem.id)], stdout=PIPE, stdin=PIPE)
                 stdout = p.communicate(input=data)[0]
-                with open("{}/{}.ans".format(problem.id, testcase), "rb") as f2:
+                with open("{}/{}.ans".format(fold, testcase), "rb") as f2:
                     ans = f2.read()
                     if ans != stdout:
                         print("Failed testcase {}".format(testcase))
@@ -100,7 +113,7 @@ Arguments:
                         isGood = False
 
 
-        onlyfiles = [str(f) for f in listdir(problem.id) if isfile(join(problem.id, f))]
+        onlyfiles = [str(f) for f in listdir(fold) if isfile(join(fold, f))]
         inFiles = [f.rstrip('.in') for f in onlyfiles if f.endswith(".in")]
         outFiles = [f.rstrip('.ans') for f in onlyfiles if f.endswith(".ans")]
         inFiles.sort()
@@ -146,6 +159,44 @@ Arguments:
         # standardize sample data filenames
         problem.standardize_sample_data()
 
+        fold = args.problem_id
+        if config["lang"] == "python":
+            fName = "{1}/{0}/{0}".format(fold, config["location"])
+
+            f = open(fName, "w+")
+            f.write("#!/usr/bin/env python\n")
+            f.close()
+
+            st = os.stat(fName)
+            os.chmod(fName, st.st_mode | stat.S_IEXEC)
+        elif config["lang"] == "c++":
+            fName = "{1}/{0}/{0}".format(fold, config["location"])
+
+            f = open(fName, "w+")
+            f.write("""#!/bin/sh
+cd {}/{}
+if [[ solution.cpp -nt sol ]]; then
+    g++ solution.cpp -o sol
+fi
+./sol
+""".format(config["location"], fold))
+            f.close()
+
+            f = open("{}/{}/solution.cpp".format(config["location"], fold) , "w+")
+            f.write("""
+#include <iostream>
+
+int main() {
+    // std::cin >> a >> b >> c; // 3 ints seperated by any amount of whitespace
+    std::cout << "Hello, World!\\n";
+}
+            """)
+            f.close()
+
+            st = os.stat(fName)
+            os.chmod(fName, st.st_mode | stat.S_IEXEC | stat.S_IXOTH | stat.S_IXGRP)
+
+
 
 class Problem():
     '''
@@ -162,7 +213,7 @@ class Problem():
     def __init__(self, problem_id):
         self.id = problem_id
         self.url = 'https://open.kattis.com/problems/' + self.id
-        self.directory = "{}/{}".format(os.getcwd(), self.id)
+        self.directory = "{}/{}".format(config["location"], self.id)
 
 
     def confirm_problem_exists(self):
